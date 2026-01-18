@@ -1,31 +1,129 @@
 <!DOCTYPE html>
-<html>
+<html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>GASデータ連携テスト</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>マイ・ライフプラン可視化ツール</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { font-family: sans-serif; margin: 20px; line-height: 1.6; color: #333; }
+        .container { max-width: 800px; margin: auto; }
+        .chart-container { position: relative; margin-bottom: 40px; height: 300px; width: 100%; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { border: 1px solid #ddd; padding: 10px; text-align: center; }
+        th { background-color: #f4f4f4; }
+        .btn { background: #007bff; color: white; border: none; padding: 10px 20px; cursor: pointer; border-radius: 5px; }
+        .btn:hover { background: #0056b3; }
+        #status { margin-bottom: 10px; font-weight: bold; }
+    </style>
 </head>
 <body>
-    <h1>スプシの計算結果</h1>
-    <div id="result">読み込み中...</div>
-    <button onclick="getData()">最新の合計を取得</button>
 
-    <script>
-        async function getData() {
-            // 先ほどコピーしたGASのURLに差し替え
-            const gasUrl = "https://script.google.com/macros/s/AKfycbwXZJ5EmWSWePbloiTZZf7m-WOzka3sTn52YNdLkxSLT3c7vHNF9G72QXMlbjvcPctM/exec";
-            
-            try {
-                const response = await fetch(gasUrl);
-                const data = await response.json();
-                document.getElementById('result').innerText = "合計： " + data.total;
-            } catch (error) {
-                console.error("エラーが発生しました:", error);
-                document.getElementById('result').innerText = "取得失敗";
-            }
+<div class="container">
+    <h1>将来の収支シミュレーション</h1>
+    
+    <div id="status">ステータス: 待機中</div>
+    <button class="btn" onclick="fetchAndRender()">最新データを取得して更新</button>
+
+    <hr>
+
+    <h2>資産推移グラフ</h2>
+    <div class="chart-container">
+        <canvas id="lifePlanChart"></canvas>
+    </div>
+
+    <h2>年度別詳細データ</h2>
+    <table id="planTable">
+        <thead>
+            <tr>
+                <th>年度</th>
+                <th>収入 (万円)</th>
+                <th>支出 (万円)</th>
+                <th>年間収支 (万円)</th>
+            </tr>
+        </thead>
+        <tbody>
+            </tbody>
+    </table>
+</div>
+
+<script>
+    // 【重要】ここにあなたのGASのウェブアプリURLを貼り付けてください
+    const gasUrl = "https://script.google.com/macros/s/AKfycbwXZJ5EmWSWePbloiTZZf7m-WOzka3sTn52YNdLkxSLT3c7vHNF9G72QXMlbjvcPctM/exec"; 
+    
+    let myChart = null; // グラフのインスタンス保持用
+
+    async function fetchAndRender() {
+        const statusEl = document.getElementById('status');
+        statusEl.innerText = "ステータス: データ取得中...";
+
+        try {
+            // 1. GASからデータを取得
+            const response = await fetch(gasUrl);
+            const data = await response.json();
+
+            // 2. 表の更新
+            updateTable(data);
+
+            // 3. グラフの更新
+            updateChart(data);
+
+            statusEl.innerText = "ステータス: 更新完了！";
+        } catch (error) {
+            console.error("Error:", error);
+            statusEl.innerText = "ステータス: 取得失敗 (コンソールを確認してください)";
         }
+    }
+
+    function updateTable(data) {
+        const tbody = document.querySelector("#planTable tbody");
+        tbody.innerHTML = ""; // 一旦中身を空にする
+
+        data.forEach(item => {
+            const balance = item.income - item.expense;
+            const row = `<tr>
+                <td>${item.year}年</td>
+                <td>${item.income}</td>
+                <td>${item.expense}</td>
+                <td style="color: ${balance >= 0 ? 'blue' : 'red'}">${balance}</td>
+            </tr>`;
+            tbody.innerHTML += row;
+        });
+    }
+
+    function updateChart(data) {
+        const ctx = document.getElementById('lifePlanChart').getContext('2d');
         
-        // ページを開いた時にも実行
-        getData();
-    </script>
+        // すでにグラフがある場合は一度破壊（再描画のため）
+        if (myChart) {
+            myChart.destroy();
+        }
+
+        myChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: data.map(d => d.year + "年"),
+                datasets: [
+                    {
+                        label: '年間収支',
+                        data: data.map(d => d.income - d.expense),
+                        borderColor: '#007bff',
+                        backgroundColor: 'rgba(0, 123, 255, 0.1)',
+                        fill: true,
+                        tension: 0.3
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: { beginAtZero: true }
+                }
+            }
+        });
+    }
+</script>
+
 </body>
 </html>
