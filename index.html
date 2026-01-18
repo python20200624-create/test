@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>GASデータ連携テスト</title>
+</head>
+<body>
+    <h1>スプシの計算結果</h1>
+    <div id="result">読み込み中...</div>
+    <button onclick="getData()">最新の合計を取得</button>
+
+    <script>
+        async function getData() {
+            // 先ほどコピーしたGASのURLに差し替え
+            const gasUrl = "https://script.google.com/macros/s/AKfycbwXZJ5EmWSWePbloiTZZf7m-WOzka3sTn52YNdLkxSLT3c7vHNF9G72QXMlbjvcPctM/exec";
+            
+            try {
+                const response = await fetch(gasUrl);
+                const data = await response.json();
+                document.getElementById('result').innerText = "合計： " + data.total;
+            } catch (error) {
+                console.error("エラーが発生しました:", error);
+                document.getElementById('result').innerText = "取得失敗";
+            }
+        }
+        
+        // ページを開いた時にも実行
+        getData();
+    </script>
+</body>
+</html>
