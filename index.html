@@ -7,123 +7,102 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         body { font-family: sans-serif; margin: 20px; line-height: 1.6; color: #333; }
-        .container { max-width: 800px; margin: auto; }
-        .chart-container { position: relative; margin-bottom: 40px; height: 300px; width: 100%; }
-        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-        th, td { border: 1px solid #ddd; padding: 10px; text-align: center; }
-        th { background-color: #f4f4f4; }
-        .btn { background: #007bff; color: white; border: none; padding: 10px 20px; cursor: pointer; border-radius: 5px; }
-        .btn:hover { background: #0056b3; }
-        #status { margin-bottom: 10px; font-weight: bold; }
+        .container { max-width: 900px; margin: auto; }
+        .chart-container { position: relative; margin-bottom: 40px; height: 400px; width: 100%; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 0.9em; }
+        th, td { border: 1px solid #ddd; padding: 10px; text-align: right; }
+        th { background-color: #f4f4f4; text-align: center; }
+        .btn { background: #28a745; color: white; border: none; padding: 12px 24px; cursor: pointer; border-radius: 5px; font-size: 1em; }
+        #status { margin-bottom: 10px; color: #666; }
     </style>
 </head>
 <body>
 
 <div class="container">
     <h1>将来の収支シミュレーション</h1>
-    
     <div id="status">ステータス: 待機中</div>
     <button class="btn" onclick="fetchAndRender()">最新データを取得して更新</button>
 
-    <hr>
-
-    <h2>資産推移グラフ</h2>
     <div class="chart-container">
         <canvas id="lifePlanChart"></canvas>
     </div>
 
-    <h2>年度別詳細データ</h2>
     <table id="planTable">
         <thead>
             <tr>
                 <th>年度</th>
-                <th>収入 (万円)</th>
-                <th>支出 (万円)</th>
-                <th>年間収支 (万円)</th>
+                <th>Income (万円)</th>
+                <th>Expense (万円)</th>
+                <th>Savings (万円)</th>
             </tr>
         </thead>
-        <tbody>
-            </tbody>
+        <tbody></tbody>
     </table>
 </div>
 
 <script>
-    // 【重要】ここにあなたのGASのウェブアプリURLを貼り付けてください
-    const gasUrl = "https://script.google.com/macros/s/AKfycbwXZJ5EmWSWePbloiTZZf7m-WOzka3sTn52YNdLkxSLT3c7vHNF9G72QXMlbjvcPctM/exec"; 
-    
-    let myChart = null; // グラフのインスタンス保持用
+    const gasUrl = "あなたのGASウェブアプリURL"; 
+    let myChart = null;
 
     async function fetchAndRender() {
         const statusEl = document.getElementById('status');
-        statusEl.innerText = "ステータス: データ取得中...";
+        statusEl.innerText = "データを読み込み中...";
 
         try {
-            // 1. GASからデータを取得
             const response = await fetch(gasUrl);
             const data = await response.json();
 
-            // 2. 表の更新
-            updateTable(data);
+            // 表の更新
+            const tbody = document.querySelector("#planTable tbody");
+            tbody.innerHTML = "";
+            data.forEach(item => {
+                const row = `<tr>
+                    <td style="text-align:center">${item.year}</td>
+                    <td>${Number(item.income).toLocaleString()}</td>
+                    <td>${Number(item.expense).toLocaleString()}</td>
+                    <td style="font-weight:bold">${Number(item.savings).toLocaleString()}</td>
+                </tr>`;
+                tbody.innerHTML += row;
+            });
 
-            // 3. グラフの更新
-            updateChart(data);
+            // グラフの更新
+            const ctx = document.getElementById('lifePlanChart').getContext('2d');
+            if (myChart) { myChart.destroy(); }
 
-            statusEl.innerText = "ステータス: 更新完了！";
-        } catch (error) {
-            console.error("Error:", error);
-            statusEl.innerText = "ステータス: 取得失敗 (コンソールを確認してください)";
-        }
-    }
-
-    function updateTable(data) {
-        const tbody = document.querySelector("#planTable tbody");
-        tbody.innerHTML = ""; // 一旦中身を空にする
-
-        data.forEach(item => {
-            const balance = item.income - item.expense;
-            const row = `<tr>
-                <td>${item.year}年</td>
-                <td>${item.income}</td>
-                <td>${item.expense}</td>
-                <td style="color: ${balance >= 0 ? 'blue' : 'red'}">${balance}</td>
-            </tr>`;
-            tbody.innerHTML += row;
-        });
-    }
-
-    function updateChart(data) {
-        const ctx = document.getElementById('lifePlanChart').getContext('2d');
-        
-        // すでにグラフがある場合は一度破壊（再描画のため）
-        if (myChart) {
-            myChart.destroy();
-        }
-
-        myChart = new Chart(ctx, {
-            type: 'line',
-            data: {
-                labels: data.map(d => d.year + "年"),
-                datasets: [
-                    {
-                        label: '年間収支',
-                        data: data.map(d => d.income - d.expense),
-                        borderColor: '#007bff',
-                        backgroundColor: 'rgba(0, 123, 255, 0.1)',
-                        fill: true,
-                        tension: 0.3
-                    }
-                ]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                scales: {
-                    y: { beginAtZero: true }
+            myChart = new Chart(ctx, {
+                type: 'bar', // 貯蓄額を強調するため棒グラフと折れ線の混合も可能
+                data: {
+                    labels: data.map(d => d.year),
+                    datasets: [
+                        {
+                            label: 'Savings (貯蓄残高)',
+                            data: data.map(d => d.savings),
+                            backgroundColor: 'rgba(40, 167, 69, 0.5)',
+                            borderColor: '#28a745',
+                            borderWidth: 1,
+                            type: 'bar' // 貯蓄は棒グラフ
+                        },
+                        {
+                            label: 'Income (収入)',
+                            data: data.map(d => d.income),
+                            borderColor: '#007bff',
+                            type: 'line', // 収入は折れ線
+                            fill: false
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: { y: { beginAtZero: true } }
                 }
-            }
-        });
+            });
+
+            statusEl.innerText = "最終更新: " + new Date().toLocaleTimeString();
+        } catch (error) {
+            statusEl.innerText = "エラーが発生しました";
+        }
     }
 </script>
-
 </body>
 </html>
